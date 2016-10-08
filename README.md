@@ -28,7 +28,7 @@ The dataset had features related to the past product demands that obviously does
 
 Model and evaluation
 
-The target feature in this dataset was numeric i.e. the sales amount. The model used was xgboost, one of the reasons to use this model was that it could process a 10 million file and more or less 200 features in about half an hour approximately in a Macbook Pro 8Gb of RAM.
+The target feature in this dataset was numeric i.e. the sales amount. The model used was xgboost, one of the reasons to use this model was that it could process a 10 million file and more or less 200 features in about half an hour approximately in a Macbook Pro 8Gb of RAM. It would had been great to build some ensembles but there was no time for that.
 
 One of the main problems was the files size in the exploration and transformation process. In the case of Random forest it took almost forever and it was not possible to get a higher rank using the competition evaluation metric that was Root Mean Squared Logarithmic Error.
 
