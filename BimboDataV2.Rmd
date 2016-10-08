@@ -1,0 +1,366 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Libraries
+```{r}
+library(ggplot2)
+library(readr)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(sqldf)
+library(stringr)
+library(caret)
+
+```
+
+
+Data Loading
+```{r}
+#Data loading
+setwd("~/Documents/Data Mining/Competitions/Kaggle/Grupo Bimbo Inventory Demand")
+train_train<-fread('trainS3.csv', header = T, sep = ',')
+test_train<-fread('trainS4.csv', header = T, sep = ',')
+test_test<-fread('testS10.csv', header = T, sep = ',')
+
+# train_train
+train_train$Marca <- as.factor(train_train$Marca)
+train_train$Medida <- as.factor(train_train$Medida)
+train_train$Canal_ID <- as.factor(train_train$Canal_ID)
+train_train$State <- as.factor(train_train$State)
+train_train$Town<-NULL
+train_train$NombreProducto<-NULL
+train_train$Nom_corto<-NULL
+train_train$NombreCliente<-NULL
+train_train$Semana<-NULL
+train_train$Venta_uni_hoy<-NULL
+train_train$Venta_hoy<-NULL
+train_train$Dev_uni_proxima<-NULL
+train_train$Dev_proxima<-NULL
+train_train$Medida<-NULL
+train_train$nom_cortito<-NULL
+train_train$townNumber <- as.numeric(train_train$townNumber)
+
+# test_train
+test_train$Marca <- as.factor(test_train$Marca)
+test_train$Medida <- as.factor(test_train$Medida)
+test_train$Canal_ID <- as.factor(test_train$Canal_ID)
+test_train$State <- as.factor(test_train$State)
+test_train$Town<-NULL
+test_train$NombreProducto<-NULL
+test_train$Nom_corto<-NULL
+test_train$NombreCliente<-NULL
+test_train$Semana<-NULL
+test_train$Venta_uni_hoy<-NULL
+test_train$Venta_hoy<-NULL
+test_train$Dev_uni_proxima<-NULL
+test_train$Dev_proxima<-NULL
+test_train$Medida<-NULL
+test_train$nom_cortito<-NULL
+
+# test_test
+test_test$Marca <- as.factor(test_test$Marca)
+test_test$Medida <- as.factor(test_test$Medida)
+test_test$Canal_ID <- as.factor(test_test$Canal_ID)
+test_test$State <- as.factor(test_test$State)
+test_test$Town<-NULL
+test_test$NombreProducto<-NULL
+test_test$Nom_corto<-NULL
+test_test$NombreCliente<-NULL
+test_test$Semana<-NULL
+test_test$Medida<-NULL
+test_test$nom_cortito<-NULL
+
+
+str(train)
+
+```
+
+Historams of Peso and Piezas
+```{r}
+par(mfrow=c(2,1))
+ggplot(train_train) + aes(x=Peso) + geom_histogram(binwidth = 30)
+ggplot(train_train) + aes(x=Piezas) + geom_histogram(binwidth = 5)
+
+```
+
+
+Histogram Peso Divided by Piezas
+```{r}
+ggplot(train_train) + aes(x=PesoDivPiezas) + geom_histogram(binwidth = 30)
+
+
+```
+
+Analysis of Demanda_uni_equil
+```{r}
+alfa<-train_train %>%
+  filter(Demanda_uni_equil<25)
+
+beta<-train_train %>%
+  filter(Demanda_uni_equil>4000)
+  
+```
+
+
+Graphs of Demanda_uni_equil
+```{r}
+par(mfrow=c(3,1))
+ggplot(train_train) + aes(x=Demanda_uni_equil) + geom_histogram(binwidth = 100)
+ggplot(alfa) + aes(x=Demanda_uni_equil) + geom_histogram(binwidth = 3)
+ggplot(alfa) + aes(x=Demanda_uni_equil) + geom_histogram(binwidth = 3)
+
+```
+
+
+```{r}
+head(train_train,10)
+
+train_train<-fread('trainS3.csv', header = T, sep = ',')
+Semana3<-train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana3)<-c("Producto_ID", "Cliente_ID", "PromedioS3")
+
+train_train<-fread('trainS4.csv', header = T, sep = ',')
+Semana4 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana4)<-c("Producto_ID", "Cliente_ID", "PromedioS4")
+
+Semanas <- merge(x=Semana3, y=Semana4, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana3, Semana4)
+
+train_train<-fread('trainS5.csv', header = T, sep = ',')
+Semana5 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana5)<-c("Producto_ID", "Cliente_ID", "PromedioS5")
+
+Semanas <- merge(x=Semanas, y=Semana5, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana5)
+
+train_train<-fread('trainS6.csv', header = T, sep = ',')
+Semana6 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana6)<-c("Producto_ID", "Cliente_ID", "PromedioS6")
+
+Semanas <- merge(x=Semanas, y=Semana6, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana6)
+
+train_train<-fread('trainS7.csv', header = T, sep = ',')
+Semana7 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana7)<-c("Producto_ID", "Cliente_ID", "PromedioS7")
+
+Semanas <- merge(x=Semanas, y=Semana7, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana7)
+
+train_train<-fread('trainS8.csv', header = T, sep = ',')
+Semana8 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana8)<-c("Producto_ID", "Cliente_ID", "PromedioS8")
+
+Semanas <- merge(x=Semanas, y=Semana8, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana8)
+
+train_train<-fread('trainS9.csv', header = T, sep = ',')
+Semana9 <- train_train %>% 
+  group_by(Producto_ID, Cliente_ID) %>%
+  summarise(promedio=mean(Demanda_uni_equil)) %>%
+  select(Producto_ID, Cliente_ID, promedio)
+rm(train_train)
+names(Semana9)<-c("Producto_ID", "Cliente_ID", "PromedioS9")
+
+Semanas <- merge(x=Semanas, y=Semana9, by = c("Producto_ID", "Cliente_ID"), all = TRUE)
+rm(Semana9)
+
+#Calculating the week demand 
+Semanas<-as.data.frame(Semanas)
+Semanas$medias<-rowMeans(as.matrix(Semanas[,c(3:9)]), na.rm=TRUE)
+Semanas$PromedioS3<-NULL
+Semanas$PromedioS4<-NULL
+Semanas$PromedioS5<-NULL
+Semanas$PromedioS6<-NULL
+Semanas$PromedioS7<-NULL
+Semanas$PromedioS8<-NULL
+Semanas$PromedioS9<-NULL
+
+write.csv(Semanas, "Semanas.csv", row.names=FALSE)
+
+# THIS PROCESS HAS TO DONE FOR EVERY WEEK
+# train_train
+train_train<-fread('trainS3.csv', header = T, sep = ',')
+train_train <- merge(x=train_train, y=Semanas, by = c("Producto_ID", "Cliente_ID"))
+
+train_train$Marca <- as.factor(train_train$Marca)
+train_train$Medida <- as.factor(train_train$Medida)
+train_train$Canal_ID <- as.factor(train_train$Canal_ID)
+train_train$State <- as.factor(train_train$State)
+train_train$Town<-NULL
+train_train$NombreProducto<-NULL
+train_train$Nom_corto<-NULL
+train_train$NombreCliente<-NULL
+train_train$Semana<-NULL
+train_train$Venta_uni_hoy<-NULL
+train_train$Venta_hoy<-NULL
+train_train$Dev_uni_proxima<-NULL
+train_train$Dev_proxima<-NULL
+train_train$Medida<-NULL
+train_train$nom_cortito<-NULL
+train_train$townNumber <- as.numeric(train_train$townNumber)
+
+# test_train
+test_train<-fread('trainS4.csv', header = T, sep = ',')
+test_train <- merge(x=test_train, y=Semanas, by = c("Producto_ID", "Cliente_ID"))
+
+test_train$Marca <- as.factor(test_train$Marca)
+test_train$Medida <- as.factor(test_train$Medida)
+test_train$Canal_ID <- as.factor(test_train$Canal_ID)
+test_train$State <- as.factor(test_train$State)
+test_train$Town<-NULL
+test_train$NombreProducto<-NULL
+test_train$Nom_corto<-NULL
+test_train$NombreCliente<-NULL
+test_train$Semana<-NULL
+test_train$Venta_uni_hoy<-NULL
+test_train$Venta_hoy<-NULL
+test_train$Dev_uni_proxima<-NULL
+test_train$Dev_proxima<-NULL
+test_train$Medida<-NULL
+test_train$nom_cortito<-NULL
+test_train$townNumber <- as.numeric(test_train$townNumber)
+
+# test_test
+test_test<-fread('testS10.csv', header = T, sep = ',')
+test_test <- merge(x=test_test, y=Semanas, by = c("Producto_ID", "Cliente_ID"), all.x = TRUE)
+
+test_test$Marca <- as.factor(test_test$Marca)
+test_test$Medida <- as.factor(test_test$Medida)
+test_test$Canal_ID <- as.factor(test_test$Canal_ID)
+test_test$State <- as.factor(test_test$State)
+test_test$Town<-NULL
+test_test$NombreProducto<-NULL
+test_test$Nom_corto<-NULL
+test_test$NombreCliente<-NULL
+test_test$Semana<-NULL
+test_test$Medida<-NULL
+test_test$nom_cortito<-NULL
+test_test$townNumber <- as.numeric(test_test$townNumber)
+
+# Some values NA replacing with the mean
+test_test$medias[is.na(test_test$medias)] = mean(test_test$medias, na.rm=TRUE)
+
+# test_test1
+test_test1<-fread('testS11.csv', header = T, sep = ',')
+test_test1 <- merge(x=test_test1, y=Semanas, by = c("Producto_ID", "Cliente_ID"), all.x = TRUE)
+
+test_test1$Marca <- as.factor(test_test1$Marca)
+test_test1$Medida <- as.factor(test_test1$Medida)
+test_test1$Canal_ID <- as.factor(test_test1$Canal_ID)
+test_test1$State <- as.factor(test_test1$State)
+test_test1$Town<-NULL
+test_test1$NombreProducto<-NULL
+test_test1$Nom_corto<-NULL
+test_test1$NombreCliente<-NULL
+test_test1$Semana<-NULL
+test_test1$Medida<-NULL
+test_test1$nom_cortito<-NULL
+test_test1$townNumber <- as.numeric(test_test1$townNumber)
+
+# Some values NA replacing with the mean
+test_test1$medias[is.na(test_test1$medias)] = mean(test_test1$medias, na.rm=TRUE)
+
+```
+
+One Hot-encoding
+
+```{r}
+# train_train: tranform just Canal_ID
+dmy <- dummyVars(" ~ Canal_ID", data = train_train)
+trsf <- data.frame(predict(dmy, newdata = train_train))
+
+train_train <- cbind(train_train, trsf)
+rm(trsf,dmy)
+train_train$Canal_ID <-NULL
+
+# test_train: tranform just Canal_ID
+dmy <- dummyVars(" ~ Canal_ID", data = test_train)
+trsf <- data.frame(predict(dmy, newdata = test_train))
+
+test_train <- cbind(test_train, trsf)
+rm(trsf,dmy)
+test_train$Canal_ID <-NULL
+
+# test_test: tranform just Canal_ID
+dmy <- dummyVars(" ~ Canal_ID", data = test_test)
+trsf <- data.frame(predict(dmy, newdata = test_test))
+
+test_test <- cbind(test_test, trsf)
+rm(trsf,dmy)
+test_test$Canal_ID <-NULL
+
+# test_test1: tranform just Canal_ID
+dmy <- dummyVars(" ~ Canal_ID", data = test_test1)
+trsf <- data.frame(predict(dmy, newdata = test_test1))
+
+test_test1 <- cbind(test_test1, trsf)
+rm(trsf,dmy)
+test_test1$Canal_ID <-NULL
+
+
+# Process depending on the factor levels 
+setdiff(test_test$Marca, train_train$Marca)
+setdiff(train_train$Marca, test_test$Marca)
+setdiff(test_test$Marca, test_train$Marca)
+setdiff(test_train$Marca, train_train$Marca)
+setdiff(train_train$Marca, test_train$Marca)
+setdiff(test_test1$Marca, train_train$Marca)
+
+train_train$Marca<-factor(train_train$Marca, levels=c(levels(train_train$Marca), c("FSL","CA","MCM","EMB")))
+levels(train_train$Marca)
+
+
+write.csv(train_train, "trainS3.csv", row.names=FALSE)
+write.csv(test_train, "trainS4.csv", row.names=FALSE)
+write.csv(test_test, "testS10.csv", row.names=FALSE)
+write.csv(test_test1, "testS11.csv", row.names=FALSE)
+
+
+trainS3S1<-train_train[sample(1:nrow(train_train),1000000, replace=TRUE),]
+trainS4S1<-test_train[sample(1:nrow(test_train),1000000, replace=TRUE),]
+
+write.csv(trainS3S1, "trainS3S1.csv", row.names=FALSE)
+write.csv(trainS4S1, "trainS4S1.csv", row.names=FALSE)
+
+
+
+rm(Semanas)
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).

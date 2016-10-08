@@ -1,0 +1,108 @@
+---
+title: "XGBoost"
+author: "Oswaldo F. Domejean"
+date: "March 14, 2016"
+output: word_document
+---
+
+Libraries
+
+```{r, echo=FALSE}
+library(data.table)
+library(Metrics)
+library(Matrix)
+library(xgboost)
+library(caTools)
+```
+
+Data loading
+```{r}
+#Data loading
+setwd("~/Documents/Data Mining/Competitions/Kaggle/Grupo Bimbo Inventory Demand")
+train_train<-fread('trainS3S1.csv', header = T, sep = ',')
+test_train<-fread('trainS4S1.csv', header = T, sep = ',')
+test_test<-fread('testS10.csv', header = T, sep = ',')
+test_test1<-fread('testS11.csv', header = T, sep = ',')
+
+train_train$Marca <- as.factor(train_train$Marca)
+train_train$State <- as.factor(train_train$State)
+
+test_train$Marca <- as.factor(test_train$Marca)
+test_train$State <- as.factor(test_train$State)
+
+test_test$Marca <- as.factor(test_test$Marca)
+test_test$State <- as.factor(test_test$State)
+
+test_test1$Marca <- as.factor(test_test1$Marca)
+test_test1$State <- as.factor(test_test1$State)
+
+train_train<-as.data.frame(train_train)
+
+setdiff(test_test$Marca, train_train$Marca)
+setdiff(train_train$Marca, test_test$Marca)
+setdiff(test_test$Marca, test_train$Marca)
+setdiff(test_train$Marca, train_train$Marca)
+setdiff(train_train$Marca, test_train$Marca)
+setdiff(test_test1$Marca, train_train$Marca)
+
+train_train$Marca<-factor(train_train$Marca, levels=c(levels(train_train$Marca), c("DIF","NAI")))
+levels(train_train$Marca)
+
+
+train_train$Demanda_uni_equil <- log(train_train$Demanda_uni_equil+1)
+
+```
+
+
+Regression trees xgboost
+
+```{r}
+
+wltst=sample(nrow(data_train),30000)
+# week 3 is train and week 4 is test
+train.label <- train_train$Demanda_uni_equil
+#test.label <- test_train$Demanda_uni_equil
+
+train.data <- train_train[,!(names(train_train) %in% c("Demanda_uni_equil"))]
+#test.data <- test_train[,!(names(test_train) %in% c("Demanda_uni_equil"))]
+
+dtrain <- xgb.DMatrix(data.matrix(train.data), label=data.matrix(train.label))
+#dvalid <- xgb.DMatrix(data.matrix(test.data), label=test.label)
+watchlist <- list(dval = dtrain)
+
+param <- list(  objective           = "reg:linear", 
+                booster             = "gbtree",
+                eta                 = 0.1,
+                colsample_bytree    = 0.7,
+                #min_child_weight    = 3, 
+                subsample           = 0.85
+)
+
+XGBLinear <- xgb.train(data      = dtrain,
+               params            = param, 
+               max_depth         = 10,
+               nrounds           = 75,
+               verbose           = 1,
+               early.stop.round  = 10,
+               watchlist         = watchlist,
+               maximize          = FALSE,
+               print.every.n     = 5,
+               eval_metric       = "rmse"
+               )
+
+predXGBLinear <- predict(XGBLinear, data.matrix(test_test))
+
+res=exp(round(predXGBLinear,5))-1
+
+# Importance of variables
+imp_matrix<-xgb.importance(feature_names = names(train.data), model = XGBLinear)
+
+print(imp_matrix)
+
+
+# Feature importance bar plot by gain
+print(xgb.plot.importance(importance_matrix = imp_matrix))
+
+```
+
+
